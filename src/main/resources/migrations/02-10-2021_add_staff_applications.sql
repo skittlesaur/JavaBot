@@ -1,8 +1,9 @@
 CREATE TABLE staff_applications (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     created_at TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
+    user_id BIGINT NOT NULL,
     name VARCHAR(127) NOT NULL,
-    age TINYINT NOT NULL,
+    age INTEGER NOT NULL,
     email VARCHAR(255) NOT NULL,
     timezone VARCHAR(32) NOT NULL,
     role_id BIGINT NOT NULL,

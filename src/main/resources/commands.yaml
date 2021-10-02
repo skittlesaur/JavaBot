@@ -701,3 +701,34 @@
       description: Anything else you'd like to tell us.
       required: false
       type: STRING
+
+- name: staff-applications
+  description: Manage staff applications.
+  handler: com.javadiscord.javabot.commands.moderation.staff_applications.StaffApplicationsHandler
+  enabledByDefault: false
+  privileges:
+    - type: ROLE
+      id: moderation.staffApplicationReviewRoleId
+  subCommands:
+    - name: list
+      description: Show a list of all applications.
+      options:
+        - name: page
+          description: The page of applications to show.
+          required: false
+          type: INTEGER
+        - name: show-all
+          description: Include all applications, not just those that are pending.
+          required: false
+          type: BOOLEAN
+    - name: handle
+      description: Accept or reject an application
+      options:
+        - name: application
+          description: The id of the application to handle.
+          required: true
+          type: INTEGER
+        - name: accept
+          description: Whether to accept or reject the application.
+          required: true
+          type: BOOLEAN
