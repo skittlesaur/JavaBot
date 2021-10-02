@@ -103,11 +103,11 @@ public class SlashCommands extends ListenerAdapter {
 
         // Add privileges to the commands, after the commands have been registered.
         commandUpdateAction.queue(commands -> Executors.newSingleThreadExecutor().submit(() ->{
-            try {
-                this.addCommandPrivileges(commands, commandConfigs, guild);
-            } catch (InterruptedException | ExecutionException e) {
-                log.error("Could not add command privileges.", e);
-            }
+//            try {
+//                this.addCommandPrivileges(commands, commandConfigs, guild);
+//            } catch (InterruptedException | ExecutionException e) {
+//                log.error("Could not add command privileges.", e);
+//            }
         }));
     }
 
