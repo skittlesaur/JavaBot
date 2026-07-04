@@ -49,7 +49,9 @@ class FormatCodeDispatcher {
 			return;
 		}
 
-		Responses.success(event.getHook(), "Success", "The formatted message is being sent to this channel.")
+		event.getHook().sendMessage("Your message has been formatted. If needed, you can change the language used for syntax highlighting below.")
+				.setEphemeral(true)
+				.setComponents(FormatCodeInteractionHandler.buildLanguageMenu(event.getUser().getIdLong(),messages.size()))
 				.queue(success -> sendChunksInOrder(channel, messages, 0, target,event));
 	}
 
@@ -62,38 +64,16 @@ class FormatCodeDispatcher {
 				.setAllowedMentions(List.of());
 
 		if (index == messages.size() - 1) {
-			if(index == 0){
-				action.setComponents(buildActionRow(target, event.getUser().getIdLong()));
-			} else {
-				action.setComponents(buildActionRow(target));
-			}
+			action.setComponents(buildActionRow(target, event.getUser().getIdLong(), messages.size()));
 		}
 
-		action.queue(success ->
-				sendChunksInOrder(channel, messages, index + 1, target, event));
+		action.queue(sent -> sendChunksInOrder(channel, messages, index + 1, target, event));
 	}
 
-	/**
-	 * Builds the action row placed on the last code-block message.
-	 *
-	 * @param target      the original message linked by the "View Original" button
-	 * @return an action row containing the "View Original" link button
-	 */
-	@Contract("_ -> new")
-	static @NotNull ActionRow buildActionRow(@NotNull Message target) {
-		return ActionRow.of(Button.link(target.getJumpUrl(), "View Original"));
-	}
-
-	/**
-	 * Builds the action row placed on the file-upload message: a delete button and a "View Original" link.
-	 *
-	 * @param target      the original message linked by the "View Original" button
-	 * @param requesterId the id of the user permitted to delete the message
-	 * @return an action row containing the delete and "View Original" buttons
-	 */
-	@Contract("_,_ -> new")
-	static @NotNull ActionRow buildActionRow(@NotNull Message target, long requesterId) {
-		return ActionRow.of(InteractionUtils.createDeleteButton(requesterId),
+	@Contract("_,_,_ -> new")
+	static @NotNull ActionRow buildActionRow(@NotNull Message target, long requesterId, int total) {
+		return ActionRow.of(
+				FormatCodeInteractionHandler.createDeleteAllButton(requesterId, total),
 				Button.link(target.getJumpUrl(), "View Original"));
 	}
 }

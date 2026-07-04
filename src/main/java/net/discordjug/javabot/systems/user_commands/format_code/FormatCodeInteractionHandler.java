@@ -1,0 +1,131 @@
+package net.discordjug.javabot.systems.user_commands.format_code;
+
+import lombok.RequiredArgsConstructor;
+import net.discordjug.javabot.annotations.AutoDetectableComponentHandler;
+import net.discordjug.javabot.data.config.BotConfig;
+import net.discordjug.javabot.util.Checks;
+import net.discordjug.javabot.util.Responses;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.selections.SelectOption;
+import net.dv8tion.jda.api.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import org.jspecify.annotations.NonNull;
+import xyz.dynxsty.dih4jda.interactions.components.ButtonHandler;
+import xyz.dynxsty.dih4jda.interactions.components.StringSelectMenuHandler;
+import xyz.dynxsty.dih4jda.util.ComponentIdBuilder;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Handles the interactive components on formatted code blocks: the delete-all button and the
+ * language-selection dropdown. Both act on every message of a (possibly multi-message) block,
+ * which is resolved via {@link LinkedMessages}.
+ */
+@AutoDetectableComponentHandler(FormatCodeInteractionHandler.COMPONENT_ID)
+@RequiredArgsConstructor
+public class FormatCodeInteractionHandler implements ButtonHandler, StringSelectMenuHandler {
+	static final String COMPONENT_ID = "format-code-delete";
+	private final BotConfig botConfig;
+
+	/**
+	 * Builds the delete-all button placed on the last message of a code block.
+	 *
+	 * @param requesterID the id of the user allowed to delete the block
+	 * @param total       the number of messages making up the block
+	 * @return the delete-all button
+	 */
+	public static Button createDeleteAllButton(long requesterID, int total){
+		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID,requesterID,total),"\uD83D\uDDD1️");
+	}
+
+	private static StringSelectMenu languageMenu(String customId) {
+		return StringSelectMenu.create(customId)
+				.setPlaceholder("Change language")
+				.addOptions(Arrays.stream(Language.values())
+						.filter(language -> language != Language.UNKNOWN)
+						.map(language -> SelectOption.of(language.getDisplayName(), language.name()))
+						.toList())
+				.build();
+	}
+
+	/**
+	 * Builds the language-selection dropdown row for a code block.
+	 *
+	 * @param requesterId the id of the user allowed to change the language
+	 * @param total       the number of messages making up the block
+	 * @return an action row containing the language dropdown
+	 */
+	public static ActionRow buildLanguageMenu(long requesterId, int total) {
+		return ActionRow.of(languageMenu(ComponentIdBuilder.build(COMPONENT_ID, requesterId, total)));
+	}
+
+	@Override
+	public void handleButton(ButtonInteractionEvent event, Button button) {
+		String[] id = ComponentIdBuilder.split(event.getComponentId());
+		long requesterId = Long.parseLong(id[1]);
+
+
+		Member member = event.getMember();
+		if (member == null) {
+			Responses.error(event, "This button may only be used inside a server.").queue();
+			return;
+		}
+		if (!canManage(member, requesterId)) {
+			Responses.errorWithTitle(event, "Access Denied", "You are not authorized to perform this action.").queue();
+			return;
+		}
+
+		event.deferEdit().queue();
+		var channel = event.getChannel();
+		LinkedMessages.resolve(channel, event.getMessage(), Integer.parseInt(id[2]),
+				messages -> messages.forEach(message -> message.delete().queue()));
+	}
+
+	@Override
+		public void handleStringSelectMenu(@NonNull StringSelectInteractionEvent event, @NonNull List<String> values) {
+		String[] id = ComponentIdBuilder.split(event.getComponentId());
+		long requesterId = Long.parseLong(id[1]);
+
+		Member member = event.getMember();
+		if (member == null) {
+			Responses.error(event, "This menu may only be used inside a server.").queue();
+			return;
+		}
+		if (!canManage(member, requesterId)) {
+			Responses.errorWithTitle(event, "Access Denied", "You are not authorized to perform this action.").queue();
+			return;
+		}
+
+		Language language = Language.fromString(values.getFirst());
+		event.deferEdit().queue();
+
+		LinkedMessages.resolveForward(event.getChannel(), event.getMessage(), Integer.parseInt(id[2]),
+				messages -> messages.forEach(message ->
+						message.editMessage(withLanguage(message.getContentRaw(), language)).queue()));
+	}
+
+	private boolean canManage(Member member, long requesterId) {
+		return member.getIdLong() == requesterId
+				|| Checks.hasStaffRole(botConfig, member)
+				|| member.isOwner() ;
+	}
+
+	/**
+	 * Re-wraps a code-block message in a different language by swapping the tag on its opening fence,
+	 * leaving the code itself untouched.
+	 *
+	 * @param content  the raw message content, expected to start with a fenced code block
+	 * @param language the language to switch to
+	 * @return the message content with its opening fence set to {@code language}
+	 */
+	private static String withLanguage(String content, Language language) {
+		int firstLineEnd = content.indexOf('\n');
+		return firstLineEnd < 0
+				? content
+				: "```" + language.getDiscordName() + content.substring(firstLineEnd);
+	}
+}
