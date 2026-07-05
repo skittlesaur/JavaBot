@@ -83,7 +83,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 
 		LinkedMessages.resolveBefore(event.getMessage(), Integer.parseInt(id[2]),
 				messages -> event.getChannel().purgeMessages(messages),
-				() -> Responses.error(event.getHook(),"Could not delete the code block"));
+				() -> Responses.error(event.getHook(),"Could not delete the code block").queue());
 	}
 
 	@Override
@@ -107,7 +107,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 		LinkedMessages.resolveAfter(event.getMessage(), Integer.parseInt(id[2]),
 				messages -> messages.forEach(message ->
 						message.editMessage(withLanguage(message.getContentRaw(), language)).queue()),
-						() -> Responses.error(event.getHook(),"Could not update the code block"));
+						() -> Responses.error(event.getHook(),"Could not update the code block").queue());
 	}
 
 	private boolean canManage(Member member, long requesterId) {
