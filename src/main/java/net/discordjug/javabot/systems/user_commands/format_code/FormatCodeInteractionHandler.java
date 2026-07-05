@@ -28,7 +28,7 @@ import java.util.List;
 @AutoDetectableComponentHandler(FormatCodeInteractionHandler.COMPONENT_ID)
 @RequiredArgsConstructor
 public class FormatCodeInteractionHandler implements ButtonHandler, StringSelectMenuHandler {
-	static final String COMPONENT_ID = "format-code-delete";
+	static final String COMPONENT_ID = "format-code";
 	private final BotConfig botConfig;
 
 	/**
@@ -39,7 +39,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 	 * @return the delete-all button
 	 */
 	public static Button createDeleteAllButton(long requesterID, int total){
-		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID,requesterID,total),"\uD83D\uDDD1️");
+		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID,requesterID,total),"\uD83D\uDDD1\uFE0F");
 	}
 
 	private static StringSelectMenu languageMenu(String customId) {
@@ -64,7 +64,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 	}
 
 	@Override
-	public void handleButton(ButtonInteractionEvent event, Button button) {
+	public void handleButton(ButtonInteractionEvent event, @NonNull Button button) {
 		String[] id = ComponentIdBuilder.split(event.getComponentId());
 		long requesterId = Long.parseLong(id[1]);
 
@@ -80,13 +80,14 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 		}
 
 		event.deferEdit().queue();
-		var channel = event.getChannel();
-		LinkedMessages.resolve(channel, event.getMessage(), Integer.parseInt(id[2]),
-				messages -> messages.forEach(message -> message.delete().queue()));
+
+		LinkedMessages.resolveBefore(event.getMessage(), Integer.parseInt(id[2]),
+				messages -> event.getChannel().purgeMessages(messages),
+				() -> Responses.error(event.getHook(),"Could not delete the code block"));
 	}
 
 	@Override
-		public void handleStringSelectMenu(@NonNull StringSelectInteractionEvent event, @NonNull List<String> values) {
+	public void handleStringSelectMenu(@NonNull StringSelectInteractionEvent event, @NonNull List<String> values) {
 		String[] id = ComponentIdBuilder.split(event.getComponentId());
 		long requesterId = Long.parseLong(id[1]);
 
@@ -103,9 +104,10 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 		Language language = Language.fromString(values.getFirst());
 		event.deferEdit().queue();
 
-		LinkedMessages.resolveForward(event.getChannel(), event.getMessage(), Integer.parseInt(id[2]),
+		LinkedMessages.resolveAfter(event.getMessage(), Integer.parseInt(id[2]),
 				messages -> messages.forEach(message ->
-						message.editMessage(withLanguage(message.getContentRaw(), language)).queue()));
+						message.editMessage(withLanguage(message.getContentRaw(), language)).queue()),
+						() -> Responses.error(event.getHook(),"Could not update the code block"));
 	}
 
 	private boolean canManage(Member member, long requesterId) {

@@ -116,7 +116,7 @@ public class InteractionUtils implements ButtonHandler, ModalHandler, StringSele
 	}
 
 	public static Button createDeleteButton(long senderId) {
-		return Button.secondary(createDeleteInteractionId(senderId), "\uD83D\uDDD1️");
+		return Button.secondary(createDeleteInteractionId(senderId), "\uD83D\uDDD1\uFE0F");
 	}
 
 	public static String createDeleteInteractionId(long senderId) {
