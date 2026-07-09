@@ -38,8 +38,8 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 	 * @param total       the number of messages making up the block
 	 * @return the delete-all button
 	 */
-	public static Button createDeleteAllButton(long requesterID, int total){
-		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID,requesterID,total),"\uD83D\uDDD1\uFE0F");
+	public static Button createDeleteAllButton(long requesterID, int total) {
+		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID, requesterID, total), "\uD83D\uDDD1\uFE0F");
 	}
 
 	private static StringSelectMenu languageMenu(String customId) {
@@ -55,12 +55,13 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 	/**
 	 * Builds the language-selection dropdown row for a code block.
 	 *
-	 * @param requesterId the id of the user allowed to change the language
-	 * @param total       the number of messages making up the block
+	 * @param requesterId    the id of the user allowed to change the language
+	 * @param total          the number of messages making up the block
+	 * @param firstMessageID the id of first message to check update code block
 	 * @return an action row containing the language dropdown
 	 */
-	public static ActionRow buildLanguageMenu(long requesterId, int total) {
-		return ActionRow.of(languageMenu(ComponentIdBuilder.build(COMPONENT_ID, requesterId, total)));
+	public static ActionRow buildLanguageMenu(long requesterId, int total, long firstMessageID) {
+		return ActionRow.of(languageMenu(ComponentIdBuilder.build(COMPONENT_ID, requesterId, total, firstMessageID)));
 	}
 
 	@Override
@@ -68,10 +69,9 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 		String[] id = ComponentIdBuilder.split(event.getComponentId());
 		long requesterId = Long.parseLong(id[1]);
 
-
 		Member member = event.getMember();
 		if (member == null) {
-			Responses.error(event, "This button may only be used inside a server.").queue();
+			Responses.errorWithTitle(event, "Server Required", "This button may only be used inside a server.").queue();
 			return;
 		}
 		if (!canManage(member, requesterId)) {
@@ -83,7 +83,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 
 		LinkedMessages.resolveBefore(event.getMessage(), Integer.parseInt(id[2]),
 				messages -> event.getChannel().purgeMessages(messages),
-				() -> Responses.error(event.getHook(),"Could not delete the code block").queue());
+				() -> Responses.errorWithTitle(event.getHook(), "Undefined Behavior", "Could not delete the code block").queue());
 	}
 
 	@Override
@@ -93,7 +93,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 
 		Member member = event.getMember();
 		if (member == null) {
-			Responses.error(event, "This menu may only be used inside a server.").queue();
+			Responses.errorWithTitle(event, "Server Required", "This menu may only be used inside a server.").queue();
 			return;
 		}
 		if (!canManage(member, requesterId)) {
@@ -104,16 +104,19 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 		Language language = Language.fromString(values.getFirst());
 		event.deferEdit().queue();
 
-		LinkedMessages.resolveAfter(event.getMessage(), Integer.parseInt(id[2]),
-				messages -> messages.forEach(message ->
-						message.editMessage(withLanguage(message.getContentRaw(), language)).queue()),
-						() -> Responses.error(event.getHook(),"Could not update the code block").queue());
+		LinkedMessages.resolveAfter(event.getMessage(), Integer.parseInt(id[2]), messages -> {
+			if (messages.getLast().getIdLong() == Long.parseLong(id[3])) {
+				messages.forEach(message -> message.editMessage(withLanguage(message.getContentRaw(), language)).queue());
+			} else {
+				Responses.errorWithTitle(event.getHook(), "Merge Conflict", "The code block could not be updated. The messages may have been deleted.").queue();
+			}
+		}, () -> Responses.errorWithTitle(event.getHook(), "Undefined Behavior", "Could not update the code block").queue());
 	}
 
 	private boolean canManage(Member member, long requesterId) {
 		return member.getIdLong() == requesterId
 				|| Checks.hasStaffRole(botConfig, member)
-				|| member.isOwner() ;
+				|| member.isOwner();
 	}
 
 	/**

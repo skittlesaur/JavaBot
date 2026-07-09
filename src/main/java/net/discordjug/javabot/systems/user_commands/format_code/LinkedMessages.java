@@ -13,16 +13,17 @@ import java.util.function.Consumer;
  * the whole block (only the bot's own messages) so a single interaction can delete or edit it.
  */
 public class LinkedMessages {
-	private LinkedMessages(){}
+	private LinkedMessages() {
+	}
 
 	/**
 	 * Resolves the block ending at {@code triggerMessage} (walking back {@code total} messages) and
-	 * passes the bot's own messages to {@code onResolved}, or runs {@code onError} if it can't be
-	 * safely resolved.
+	 * passes the bot's own messages to {@code onResolved}, ordered from newest to oldest.
+	 * Runs {@code onError} if the block can't be safely resolved.
 	 *
 	 * @param triggerMessage the last message of the block (carries the component)
 	 * @param total          the number of messages in the block
-	 * @param onResolved     receives the bot's messages that make up the block
+	 * @param onResolved     receives the bot's messages, ordered from newest to oldest
 	 * @param onError        runs if the block can't be safely resolved
 	 */
 	static void resolveBefore(Message triggerMessage, int total, Consumer<List<Message>> onResolved, Runnable onError) {
@@ -39,11 +40,12 @@ public class LinkedMessages {
 
 	/**
 	 * Resolves the block of {@code total} messages sent after {@code anchorMessage} and passes the
-	 * bot's own messages to {@code onResolved}, or runs {@code onError} if it can't be safely resolved.
+	 * bot's own messages to {@code onResolved}, ordered from newest to oldest.
+	 * Runs {@code onError} if the block can't be safely resolved.
 	 *
 	 * @param anchorMessage the message just before the block (carries the component)
 	 * @param total         the number of messages in the block
-	 * @param onResolved    receives the bot's messages that make up the block
+	 * @param onResolved    receives the bot's messages, ordered from newest to oldest
 	 * @param onError       runs if the block can't be safely resolved
 	 */
 	static void resolveAfter(Message anchorMessage, int total, Consumer<List<Message>> onResolved, Runnable onError) {

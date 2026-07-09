@@ -33,9 +33,9 @@ class FormatCodeDispatcher {
 	 * @param target the original message the code came from, used for the channel and the
 	 *               "View Original" / delete buttons
 	 */
-	public static void sendCode(Code code, @Nonnull CommandInteraction event, Message target){
+	public static void sendCode(Code code, @Nonnull CommandInteraction event, Message target) {
 		if (code.getContent().isBlank()) {
-			Responses.errorWithTitle(event.getHook(), "404 Code not found","There is no code to format in that message.").queue();
+			Responses.errorWithTitle(event.getHook(), "404 Code not found", "There is no code to format in that message.").queue();
 			return;
 		}
 
@@ -44,20 +44,21 @@ class FormatCodeDispatcher {
 		MessageChannel channel = target.getChannel();
 
 		if (messages.size() > MAX_MESSAGES) {
-			Responses.errorWithTitle(event.getHook(), "Output Too Large", "The formatted result is too large to send. Please provide a smaller code snippet or use a paste service instead."
+			Responses.errorWithTitle(event.getHook(), "Code out of Bound", "The formatted result is too large to send. Please provide a smaller code snippet or use a paste service instead."
 			).queue();
 			return;
 		}
 
-		event.getHook().sendMessage("Your message has been formatted. If needed, you can change the language used for syntax highlighting below.")
-				.setEphemeral(true)
-				.setComponents(FormatCodeInteractionHandler.buildLanguageMenu(event.getUser().getIdLong(),messages.size()))
-				.queue(success -> sendChunksInOrder(channel, messages, 0, target,event));
+		sendChunksInOrder(channel, messages, 0, target, event, 0L);
 	}
 
 
-	private static void sendChunksInOrder(MessageChannel channel, List<String> messages, int index, Message target, @Nonnull CommandInteraction event) {
+	private static void sendChunksInOrder(MessageChannel channel, List<String> messages, int index, Message target, @Nonnull CommandInteraction event, long firstMessageID) {
 		if (index >= messages.size()) {
+			event.getHook().sendMessage("Your message has been set. If needed, you can change the language used for syntax highlighting below.")
+					.setEphemeral(true)
+					.setComponents(FormatCodeInteractionHandler.buildLanguageMenu(event.getUser().getIdLong(), messages.size(), firstMessageID))
+					.queue();
 			return;
 		}
 		var action = channel.sendMessage(messages.get(index))
@@ -67,7 +68,7 @@ class FormatCodeDispatcher {
 			action.setComponents(buildActionRow(target, event.getUser().getIdLong(), messages.size()));
 		}
 
-		action.queue(sent -> sendChunksInOrder(channel, messages, index + 1, target, event));
+		action.queue(sent -> sendChunksInOrder(channel, messages, index + 1, target, event, index == 0 ? sent.getIdLong() : firstMessageID));
 	}
 
 	@Contract("_,_,_ -> new")
