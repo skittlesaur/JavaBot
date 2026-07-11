@@ -115,7 +115,7 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 			Responses.errorWithTitle(event, "Server Required", "This may only be used inside a server.").queue();
 			return false;
 		}
-		if (member.getIdLong() != requesterId || !Checks.hasStaffRole(botConfig, member)) {
+		if (member.getIdLong() != requesterId && !Checks.hasStaffRole(botConfig, member)) {
 			Responses.errorWithTitle(event, "Access Denied", "You are not authorized to perform this action.").queue();
 			return false;
 		}
