@@ -16,24 +16,24 @@ public class LinkedMessages {
 	private LinkedMessages() {
 	}
 
-	/**
+		/**
 	 * Resolves a block of messages ending at {@code triggerMessage} and passes the
 	 * bot's own messages to {@code onResolved}, ordered from newest to oldest.
 	 * If {@code inclusive} is {@code true}, {@code triggerMessage} is included in
 	 * the resolved block; otherwise, only the preceding {@code total} messages are
-	 * considered. Runs {@code onError} if the block can't be safely resolved.
+	 * considered. When {@code inclusive} is {@code true}, {@code total} must be at
+	 * least 2: {@code triggerMessage} counts as one of the {@code total} messages
+	 * and the remaining {@code total - 1} are fetched from the channel history, so
+	 * a single-message inclusive block is not supported. Runs {@code onError} if
+	 * the block can't be safely resolved.
 	 *
 	 * @param triggerMessage the message marking the end of the block
-	 * @param total          the number of messages to resolve
+	 * @param total          the number of messages to resolve; must be at least 2 when {@code inclusive} is {@code true}
 	 * @param inclusive      whether {@code triggerMessage} should be included in the resolved block
 	 * @param onResolved     receives the bot's messages, ordered from newest to oldest
 	 * @param onError        runs if the block can't be safely resolved
 	 */
 	static void resolveBefore(Message triggerMessage, int total, boolean inclusive,Consumer<List<Message>> onResolved, Runnable onError) {
-		if (total <= 1 && inclusive) {
-			verify(List.of(triggerMessage), total, onResolved, onError);
-			return;
-		}
 		triggerMessage.getChannel().getHistoryBefore(triggerMessage.getIdLong(), inclusive?total-1 :total).queue(history -> {
 			List<Message> block = new ArrayList<>(history.getRetrievedHistory());
 			if (inclusive){
