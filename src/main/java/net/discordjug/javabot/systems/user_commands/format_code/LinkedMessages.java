@@ -17,40 +17,30 @@ public class LinkedMessages {
 	}
 
 	/**
-	 * Resolves the block ending at {@code triggerMessage} (walking back {@code total} messages) and
-	 * passes the bot's own messages to {@code onResolved}, ordered from newest to oldest.
-	 * Runs {@code onError} if the block can't be safely resolved.
+	 * Resolves a block of messages ending at {@code triggerMessage} and passes the
+	 * bot's own messages to {@code onResolved}, ordered from newest to oldest.
+	 * If {@code inclusive} is {@code true}, {@code triggerMessage} is included in
+	 * the resolved block; otherwise, only the preceding {@code total} messages are
+	 * considered. Runs {@code onError} if the block can't be safely resolved.
 	 *
-	 * @param triggerMessage the last message of the block (carries the component)
-	 * @param total          the number of messages in the block
+	 * @param triggerMessage the message marking the end of the block
+	 * @param total          the number of messages to resolve
+	 * @param inclusive      whether {@code triggerMessage} should be included in the resolved block
 	 * @param onResolved     receives the bot's messages, ordered from newest to oldest
 	 * @param onError        runs if the block can't be safely resolved
 	 */
-	static void resolveBefore(Message triggerMessage, int total, Consumer<List<Message>> onResolved, Runnable onError) {
-		if (total <= 1) {
+	static void resolveBefore(Message triggerMessage, int total, boolean inclusive,Consumer<List<Message>> onResolved, Runnable onError) {
+		if (total <= 1 && inclusive) {
 			verify(List.of(triggerMessage), total, onResolved, onError);
 			return;
 		}
-		triggerMessage.getChannel().getHistoryBefore(triggerMessage.getIdLong(), total - 1).queue(history -> {
+		triggerMessage.getChannel().getHistoryBefore(triggerMessage.getIdLong(), inclusive?total-1 :total).queue(history -> {
 			List<Message> block = new ArrayList<>(history.getRetrievedHistory());
-			block.add(triggerMessage);
+			if (inclusive){
+				block.addFirst(triggerMessage);
+			}
 			verify(block, total, onResolved, onError);
 		});
-	}
-
-	/**
-	 * Resolves the block of {@code total} messages sent after {@code anchorMessage} and passes the
-	 * bot's own messages to {@code onResolved}, ordered from newest to oldest.
-	 * Runs {@code onError} if the block can't be safely resolved.
-	 *
-	 * @param anchorMessage the message just before the block (carries the component)
-	 * @param total         the number of messages in the block
-	 * @param onResolved    receives the bot's messages, ordered from newest to oldest
-	 * @param onError       runs if the block can't be safely resolved
-	 */
-	static void resolveAfter(Message anchorMessage, int total, Consumer<List<Message>> onResolved, Runnable onError) {
-		anchorMessage.getChannel().getHistoryAfter(anchorMessage.getIdLong(), total).queue(history ->
-				verify(history.getRetrievedHistory(), total, onResolved, onError));
 	}
 
 	private static void verify(List<Message> messages, int total, Consumer<List<Message>> onResolved, Runnable onError) {

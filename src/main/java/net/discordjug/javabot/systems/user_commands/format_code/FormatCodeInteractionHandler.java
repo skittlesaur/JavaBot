@@ -12,6 +12,7 @@ import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
 import org.jspecify.annotations.NonNull;
 import xyz.dynxsty.dih4jda.interactions.components.ButtonHandler;
 import xyz.dynxsty.dih4jda.interactions.components.StringSelectMenuHandler;
@@ -34,22 +35,32 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 	/**
 	 * Builds the delete-all button placed on the last message of a code block.
 	 *
-	 * @param requesterID the id of the user allowed to delete the block
-	 * @param total       the number of messages making up the block
+	 * @param requesterID 		the id of the user allowed to delete the block
+	 * @param total 			the number of messages making up the block
+	 * @param firstMessageID	the id of first message to check update code block
 	 * @return the delete-all button
 	 */
-	public static Button createDeleteAllButton(long requesterID, int total) {
-		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID, requesterID, total), "\uD83D\uDDD1\uFE0F");
+	public static Button createDeleteAllButton(long requesterID, int total, long firstMessageID) {
+		return Button.secondary(ComponentIdBuilder.build(COMPONENT_ID, requesterID, total,firstMessageID), "\uD83D\uDDD1\uFE0F");
 	}
 
-	private static StringSelectMenu languageMenu(String customId) {
-		return StringSelectMenu.create(customId)
-				.setPlaceholder("Change language")
-				.addOptions(Arrays.stream(Language.values())
-						.filter(language -> language != Language.UNKNOWN)
-						.map(language -> SelectOption.of(language.getDisplayName(), language.name()))
-						.toList())
-				.build();
+	@Override
+	public void handleButton(ButtonInteractionEvent event, @NonNull Button button) {
+		if (!isValid(event)) {
+			return;
+		}
+		String[] id = ComponentIdBuilder.split(event.getComponentId());
+
+		event.deferEdit().queue();
+
+		LinkedMessages.resolveBefore(event.getMessage(), Integer.parseInt(id[2]), true,
+				messages -> {
+					if (messages.getLast().getIdLong() == Long.parseLong(id[3])) {
+						event.getChannel().purgeMessages(messages);
+					} else {
+						Responses.error(event.getHook(), "The code block could not be deleted. The messages may have been deleted.").queue();
+					}
+				}, () -> Responses.error(event.getHook(), "Could not delete the code block").queue());
 	}
 
 	/**
@@ -65,58 +76,51 @@ public class FormatCodeInteractionHandler implements ButtonHandler, StringSelect
 	}
 
 	@Override
-	public void handleButton(ButtonInteractionEvent event, @NonNull Button button) {
+	public void handleStringSelectMenu(@NonNull StringSelectInteractionEvent event, @NonNull List<String> values) {
+		if (!isValid(event)) {
+			return;
+		}
+
+		String[] id = ComponentIdBuilder.split(event.getComponentId());
+		Language language = Language.fromString(values.getFirst());
+
+		event.deferEdit().queue();
+
+		LinkedMessages.resolveBefore(event.getMessage(), Integer.parseInt(id[2]), false,
+				messages -> {
+					if (messages.getLast().getIdLong() == Long.parseLong(id[3])) {
+						messages.forEach(message -> message.editMessage(withLanguage(message.getContentRaw(), language)).queue());
+					} else {
+						Responses.error(event.getHook(), "The code block could not be updated. The messages may have been deleted.").queue();
+					}
+				}, () -> Responses.error(event.getHook(), "Could not update the code block").queue());
+	}
+
+	private static StringSelectMenu languageMenu(String customId) {
+		return StringSelectMenu.create(customId)
+				.setPlaceholder("Change language")
+				.addOptions(Arrays.stream(Language.values())
+						.filter(language -> language != Language.UNKNOWN)
+						.map(language -> SelectOption.of(language.getDisplayName(), language.name()))
+						.toList())
+				.build();
+	}
+
+	private boolean isValid(ComponentInteraction event) {
 		String[] id = ComponentIdBuilder.split(event.getComponentId());
 		long requesterId = Long.parseLong(id[1]);
 
 		Member member = event.getMember();
 		if (member == null) {
 			Responses.errorWithTitle(event, "Server Required", "This button may only be used inside a server.").queue();
-			return;
+			return false;
 		}
-		if (!canManage(member, requesterId)) {
+		if (!(member.getIdLong() == requesterId || Checks.hasStaffRole(botConfig, member))) {
 			Responses.errorWithTitle(event, "Access Denied", "You are not authorized to perform this action.").queue();
-			return;
+			return false;
 		}
 
-		event.deferEdit().queue();
-
-		LinkedMessages.resolveBefore(event.getMessage(), Integer.parseInt(id[2]),
-				messages -> event.getChannel().purgeMessages(messages),
-				() -> Responses.errorWithTitle(event.getHook(), "Undefined Behavior", "Could not delete the code block").queue());
-	}
-
-	@Override
-	public void handleStringSelectMenu(@NonNull StringSelectInteractionEvent event, @NonNull List<String> values) {
-		String[] id = ComponentIdBuilder.split(event.getComponentId());
-		long requesterId = Long.parseLong(id[1]);
-
-		Member member = event.getMember();
-		if (member == null) {
-			Responses.errorWithTitle(event, "Server Required", "This menu may only be used inside a server.").queue();
-			return;
-		}
-		if (!canManage(member, requesterId)) {
-			Responses.errorWithTitle(event, "Access Denied", "You are not authorized to perform this action.").queue();
-			return;
-		}
-
-		Language language = Language.fromString(values.getFirst());
-		event.deferEdit().queue();
-
-		LinkedMessages.resolveAfter(event.getMessage(), Integer.parseInt(id[2]), messages -> {
-			if (messages.getLast().getIdLong() == Long.parseLong(id[3])) {
-				messages.forEach(message -> message.editMessage(withLanguage(message.getContentRaw(), language)).queue());
-			} else {
-				Responses.errorWithTitle(event.getHook(), "Merge Conflict", "The code block could not be updated. The messages may have been deleted.").queue();
-			}
-		}, () -> Responses.errorWithTitle(event.getHook(), "Undefined Behavior", "Could not update the code block").queue());
-	}
-
-	private boolean canManage(Member member, long requesterId) {
-		return member.getIdLong() == requesterId
-				|| Checks.hasStaffRole(botConfig, member)
-				|| member.isOwner();
+		return true;
 	}
 
 	/**
