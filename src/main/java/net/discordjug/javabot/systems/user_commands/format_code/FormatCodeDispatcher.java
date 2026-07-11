@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.interactions.commands.CommandInteraction;
+import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -33,9 +34,9 @@ class FormatCodeDispatcher {
 	 * @param target the original message the code came from, used for the channel and the
 	 *               "View Original" / delete buttons
 	 */
-	public static void sendCode(Code code, @Nonnull CommandInteraction event, Message target){
+	public static void sendCode(Code code, @Nonnull CommandInteraction event, Message target) {
 		if (code.getContent().isBlank()) {
-			Responses.errorWithTitle(event.getHook(), "404 Code not found","There is no code to format in that message.").queue();
+			Responses.errorWithTitle(event.getHook(), "404 Code not found", "There is no code to format in that message.").queue();
 			return;
 		}
 
@@ -44,56 +45,50 @@ class FormatCodeDispatcher {
 		MessageChannel channel = target.getChannel();
 
 		if (messages.size() > MAX_MESSAGES) {
-			Responses.errorWithTitle(event.getHook(), "Output Too Large", "The formatted result is too large to send. Please provide a smaller code snippet or use a paste service instead."
+			Responses.errorWithTitle(event.getHook(), "Code out of Bounds", "The formatted result is too large to send. Please provide a smaller code snippet or use a paste service instead."
 			).queue();
 			return;
 		}
 
-		Responses.success(event.getHook(), "Success", "The formatted message is being sent to this channel.")
-				.queue(success -> sendChunksInOrder(channel, messages, 0, target,event));
+		sendChunksInOrder(channel, messages, 0, target, event, 0L);
 	}
 
 
-	private static void sendChunksInOrder(MessageChannel channel, List<String> messages, int index, Message target, @Nonnull CommandInteraction event) {
+	private static void sendChunksInOrder(MessageChannel channel, List<String> messages, int index, Message target, @Nonnull CommandInteraction event, long firstMessageID) {
 		if (index >= messages.size()) {
+			event.getHook().deleteOriginal().queue(_ ->
+				event.getHook().sendMessage("Your message has been sent. If needed, you can change the language used for syntax highlighting below.")
+						.setEphemeral(true)
+						.setComponents(FormatCodeInteractionHandler.buildLanguageMenu(event.getUser().getIdLong(), messages.size(), firstMessageID))
+						.queue()
+			);
 			return;
 		}
-		var action = channel.sendMessage(messages.get(index))
+		MessageCreateAction action = channel.sendMessage(messages.get(index))
 				.setAllowedMentions(List.of());
 
 		if (index == messages.size() - 1) {
-			if(index == 0){
-				action.setComponents(buildActionRow(target, event.getUser().getIdLong()));
+			if(messages.size() >1) {
+				action.setComponents(buildMultiMessageActionRow(target, event.getUser().getIdLong(), messages.size(), firstMessageID));
 			} else {
-				action.setComponents(buildActionRow(target));
+				action.setComponents(buildActionRow(target,event.getUser().getIdLong()));
 			}
 		}
 
-		action.queue(success ->
-				sendChunksInOrder(channel, messages, index + 1, target, event));
+		action.queue(sent -> sendChunksInOrder(channel, messages, index + 1, target, event, index == 0 ? sent.getIdLong() : firstMessageID));
 	}
 
-	/**
-	 * Builds the action row placed on the last code-block message.
-	 *
-	 * @param target      the original message linked by the "View Original" button
-	 * @return an action row containing the "View Original" link button
-	 */
-	@Contract("_ -> new")
-	static @NotNull ActionRow buildActionRow(@NotNull Message target) {
-		return ActionRow.of(Button.link(target.getJumpUrl(), "View Original"));
+	@Contract("_,_,_,_ -> new")
+	static @NotNull ActionRow buildMultiMessageActionRow(@NotNull Message target, long requesterId, int total, long firstMessageID) {
+		return ActionRow.of(
+				FormatCodeInteractionHandler.createDeleteAllButton(requesterId, total, firstMessageID ),
+				Button.link(target.getJumpUrl(), "View Original"));
 	}
 
-	/**
-	 * Builds the action row placed on the file-upload message: a delete button and a "View Original" link.
-	 *
-	 * @param target      the original message linked by the "View Original" button
-	 * @param requesterId the id of the user permitted to delete the message
-	 * @return an action row containing the delete and "View Original" buttons
-	 */
-	@Contract("_,_ -> new")
+	@Contract("_,_-> new")
 	static @NotNull ActionRow buildActionRow(@NotNull Message target, long requesterId) {
-		return ActionRow.of(InteractionUtils.createDeleteButton(requesterId),
+		return ActionRow.of(
+				InteractionUtils.createDeleteButton(requesterId),
 				Button.link(target.getJumpUrl(), "View Original"));
 	}
 }

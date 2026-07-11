@@ -56,7 +56,7 @@ public class FormatCodeCommand extends SlashCommand {
 		String indentation = event.getOption("auto-indent","NULL",OptionMapping::getAsString);
 
 		if (idOption == null) {
-			event.deferReply().queue(_ -> {
+			event.deferReply(true).queue(_ -> {
 				event.getChannel().getHistory()
 				.retrievePast(10)
 				.queue(messages -> {
@@ -78,7 +78,7 @@ public class FormatCodeCommand extends SlashCommand {
 				return;
 			}
 			long messageId = idOption.getAsLong();
-			event.deferReply().queue(_ -> {
+			event.deferReply(true).queue(_ -> {
 				event.getChannel().retrieveMessageById(messageId).queue(
 						target -> sendFormattedCode(event, target, language, indentation),
 						error -> Responses.errorWithTitle(event.getHook(), "Message Not Found", "Could not retrieve the message with ID `" + messageId + "`. Make sure the message exists and is accessible.").queue());
