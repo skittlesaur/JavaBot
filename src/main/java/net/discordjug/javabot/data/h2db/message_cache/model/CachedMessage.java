@@ -9,6 +9,7 @@ import lombok.ToString;
 import net.discordjug.javabot.util.MessageUtils;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 
 /**
  * Represents a cached Message.
@@ -19,12 +20,14 @@ import net.dv8tion.jda.api.entities.Message.Attachment;
 public class CachedMessage {
 	private final long messageId;
 	private final long authorId;
+	private final long channelId;
 	private String messageContent;
 	private List<String> attachments=new ArrayList<>();
 	
-	private CachedMessage(long messageId, long authorId) {
+	private CachedMessage(long messageId, long authorId,long channelId) {
 		this.messageId = messageId;
 		this.authorId = authorId;
+		this.channelId = channelId;
 	}
 	
 	/**
@@ -34,10 +37,11 @@ public class CachedMessage {
 	 * @param messageContent the textual content of the message
 	 * @param attachments The attachment URLs
 	 */
-	public CachedMessage(long messageId, long authorId, String messageContent, List<String> attachments) {
+	public CachedMessage(long messageId, long authorId, long channelId, String messageContent, List<String> attachments) {
 		super();
 		this.messageId = messageId;
 		this.authorId = authorId;
+		this.channelId = channelId;
 		this.messageContent = messageContent;
 		this.attachments = List.copyOf(attachments);
 	}
@@ -49,7 +53,7 @@ public class CachedMessage {
 	 * @return The built {@link CachedMessage}.
 	 */
 	public static CachedMessage of(Message message) {
-		CachedMessage cachedMessage = new CachedMessage(message.getIdLong(), message.getAuthor().getIdLong());
+		CachedMessage cachedMessage = new CachedMessage(message.getIdLong(), message.getAuthor().getIdLong(),message.getChannelIdLong());
 		cachedMessage.init(message);
 		return cachedMessage;
 	}

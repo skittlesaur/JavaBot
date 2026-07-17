@@ -2,12 +2,15 @@ package net.discordjug.javabot.systems.moderation;
 
 import lombok.extern.slf4j.Slf4j;
 import net.discordjug.javabot.data.config.BotConfig;
+import net.discordjug.javabot.data.config.guild.ModerationConfig;
 import net.discordjug.javabot.data.h2db.message_cache.MessageCache;
+import net.discordjug.javabot.data.h2db.message_cache.model.CachedMessage;
 import net.discordjug.javabot.systems.moderation.warn.model.WarnSeverity;
 import net.discordjug.javabot.systems.notification.NotificationService;
 import net.discordjug.javabot.util.ExceptionLogger;
 import net.discordjug.javabot.util.MessageUtils;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
@@ -24,6 +27,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
@@ -50,7 +54,7 @@ public class AutoMod extends ListenerAdapter {
 	private final MessageCache messageCache;
 
 	/**
-	 * Constructor of the class, that creates a list of strings with potential spam/scam urls.
+	 * Constructor of the class, that creates a list of strings with potential spam/scam URLs.
 	 * @param notificationService The {@link QOTWPointsService}
 	 * @param botConfig The main configuration of the bot
 	 * @param moderationService Service object for moderating members
@@ -108,18 +112,33 @@ public class AutoMod extends ListenerAdapter {
 			.stream()
 			.filter(cached -> cached.getMessageId() != message.getIdLong()) // exclude new/current message
 			.filter(cached -> cached.getAuthorId() == message.getAuthor().getIdLong())
-			.filter(cached -> 
+			.filter(cached ->
 				// only java files -> not spam
-				cached.getAttachments().isEmpty() || 
+				cached.getAttachments().isEmpty() ||
 				cached.getAttachments().stream()
 					.anyMatch(attachment -> !attachment.contains(".java?")))
 			.count() + 1; // include new message
-			
+
 		if (spamCount >= 5) {
 			handleSpam(message, message.getMember());
 		}
 
 		checkContentAutomod(message);
+		checkCrossChannelSpam(message);
+	}
+
+	private void checkCrossChannelSpam(@Nonnull Message message) {
+		List<CachedMessage> spamMessages = new ArrayList<>();
+		messageCache.getMessagesAfter(message.getTimeCreated().minusSeconds((botConfig.get(message.getGuild()).getModerationConfig()).getCrossChannelSpamWindowSeconds())).stream()
+				.filter(cachedMessage -> cachedMessage.getAuthorId() == message.getAuthor().getIdLong())
+				.filter(cachedMessage -> spamMessages.stream().noneMatch(
+						spamMessage -> spamMessage.getChannelId() == cachedMessage.getChannelId()))
+				.forEach(spamMessages::add);
+
+		if(spamMessages.size() > (botConfig.get(message.getGuild()).getModerationConfig()).getCrossChannelSpamMinChannels()){
+			handleSpam(spamMessages,message);
+		}
+
 	}
 
 	/**
@@ -174,6 +193,22 @@ public class AutoMod extends ListenerAdapter {
 		msg.delete().queue();
 	}
 
+	private void handleSpam(@Nonnull List<CachedMessage> cachedMessages, Message message) {
+		Guild guild = message.getGuild();
+		moderationService
+				.timeout(
+						message.getAuthor(),
+						"Automod: Spam",
+						message.getGuild().getSelfMember(),
+						Duration.of(6, ChronoUnit.HOURS),
+						message.getChannel(),
+						false
+				);
+
+		cachedMessages.forEach(cachedMessage -> guild.getTextChannelById(cachedMessage.getChannelId())
+				.deleteMessageById(cachedMessage.getMessageId()).queue());
+	}
+
 	/**
 	 * returns the original String cleaned up of unused code points and spaces.
 	 *
@@ -218,7 +253,7 @@ public class AutoMod extends ListenerAdapter {
 	 * Checks whether the given message contains a discord invite link.
 	 *
 	 * @param message The Message to check.
-	 * @return True if an invite is found and False if not.
+	 * @return True if an invitation is found and False if not.
 	 */
 	public boolean hasAdvertisingLink(@NotNull Message message) {
 		// Advertising
@@ -237,5 +272,5 @@ public class AutoMod extends ListenerAdapter {
 		return channel.getType().isGuild() &&
 				channel.getIdLong() == botConfig.get(channel.asGuildMessageChannel().getGuild()).getModerationConfig().getSuggestionChannel().getIdLong();
 	}
-	
+
 }

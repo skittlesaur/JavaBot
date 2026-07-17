@@ -88,7 +88,7 @@ public class MessageCacheRepository {
 			messages.merge(msg.getMessageId(), msg, (oldValue, value) -> {
 				ArrayList<String> attachments = new ArrayList<>(oldValue.getAttachments());
 				attachments.addAll(value.getAttachments());
-				return new CachedMessage(oldValue.getMessageId(), oldValue.getAuthorId(), oldValue.getMessageContent(), attachments);
+				return new CachedMessage(oldValue.getMessageId(), oldValue.getAuthorId(), oldValue.getChannelId(),oldValue.getMessageContent(), attachments);
 			});
 		}
 		return new ArrayList<>(messages.values());
@@ -119,6 +119,7 @@ public class MessageCacheRepository {
 		return new CachedMessage(
 				rs.getLong("message_cache.message_id"),
 				rs.getLong("author_id"),
+				rs.getLong("channel_id"),
 				rs.getString("message_content"),
 				attachments);
 	}
