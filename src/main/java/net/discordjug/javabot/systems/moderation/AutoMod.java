@@ -2,7 +2,6 @@ package net.discordjug.javabot.systems.moderation;
 
 import lombok.extern.slf4j.Slf4j;
 import net.discordjug.javabot.data.config.BotConfig;
-import net.discordjug.javabot.data.config.guild.ModerationConfig;
 import net.discordjug.javabot.data.h2db.message_cache.MessageCache;
 import net.discordjug.javabot.data.h2db.message_cache.model.CachedMessage;
 import net.discordjug.javabot.systems.moderation.warn.model.WarnSeverity;

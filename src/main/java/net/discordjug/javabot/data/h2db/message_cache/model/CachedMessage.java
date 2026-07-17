@@ -9,7 +9,6 @@ import lombok.ToString;
 import net.discordjug.javabot.util.MessageUtils;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Message.Attachment;
-import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 
 /**
  * Represents a cached Message.
@@ -34,6 +33,7 @@ public class CachedMessage {
 	 * Creates a {@link CachedMessage} with the given information.
 	 * @param messageId The Discord ID of the message
 	 * @param authorId The Discord ID of the message author
+	 * @param channelId The Discord ID of the message channel
 	 * @param messageContent the textual content of the message
 	 * @param attachments The attachment URLs
 	 */
