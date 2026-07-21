@@ -186,17 +186,17 @@ public class AutoMod extends ListenerAdapter {
 	 * @param msg the (last) spam message
 	 */
 	private void handleSpam(@Nonnull Message msg) {
-		markSpam(msg);
+		timeoutForSpam(msg);
 		msg.delete().queue();
 	}
 
 	private void handleSpam(@Nonnull List<CachedMessage> cachedMessages, Message message) {
-		markSpam(message);
+		timeoutForSpam(message);
 		cachedMessages.forEach(cachedMessage -> message.getGuild().getTextChannelById(cachedMessage.getChannelId())
 				.deleteMessageById(cachedMessage.getMessageId()).queue());
 	}
 
-	private void markSpam(@Nonnull Message message) {
+	private void timeoutForSpam(@Nonnull Message message) {
 		moderationService
 				.timeout(
 						message.getAuthor(),
@@ -252,7 +252,7 @@ public class AutoMod extends ListenerAdapter {
 	 * Checks whether the given message contains a discord invite link.
 	 *
 	 * @param message The Message to check.
-	 * @return True if an invites is found and False if not.
+	 * @return True if an invite is found and False if not.
 	 */
 	public boolean hasAdvertisingLink(@NotNull Message message) {
 		// Advertising

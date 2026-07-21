@@ -31,14 +31,15 @@ public class MessageCacheRepository {
 	 * @throws SQLException If an error occurs.
 	 */
 	public void insertList(@NotNull List<CachedMessage> messages) throws DataAccessException {
-		jdbcTemplate.batchUpdate("MERGE INTO message_cache (message_id, author_id, message_content) VALUES (?, ?, ?)",
+		jdbcTemplate.batchUpdate("MERGE INTO message_cache (message_id, author_id, channel_id, message_content) VALUES (?, ?, ?, ?)",
 				new BatchPreparedStatementSetter() {
 					@Override
 					public void setValues(PreparedStatement stmt, int i) throws SQLException {
 						CachedMessage msg = messages.get(i);
 						stmt.setLong(1, msg.getMessageId());
 						stmt.setLong(2, msg.getAuthorId());
-						stmt.setString(3, msg.getMessageContent());
+						stmt.setLong(3,msg.getChannelId());
+						stmt.setString(4, msg.getMessageContent());
 						stmt.executeUpdate();
 					}
 
