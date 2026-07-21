@@ -1,0 +1,1 @@
+ALTER TABLE message_cache ADD COLUMN channel_id BIGINT DEFAULT -1;

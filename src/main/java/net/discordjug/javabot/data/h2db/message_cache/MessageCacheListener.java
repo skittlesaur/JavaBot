@@ -39,10 +39,10 @@ public class MessageCacheListener extends ListenerAdapter {
 		CachedMessage before;
 		if (optional.isPresent()) {
 			CachedMessage inCache= optional.get();
-			before = new CachedMessage(inCache.getMessageId(), inCache.getAuthorId(), inCache.getMessageContent(), inCache.getAttachments());
+			before = new CachedMessage(inCache.getMessageId(), inCache.getAuthorId(), inCache.getChannelId(),inCache.getMessageContent(), inCache.getAttachments());
 			inCache.init(event.getMessage());
 		} else {
-			before = new CachedMessage(event.getMessageIdLong(), event.getAuthor().getIdLong(), "[unknown content]", List.of());
+			before = new CachedMessage(event.getMessageIdLong(), event.getAuthor().getIdLong(), event.getChannel().getIdLong(),"[unknown content]", List.of());
 			messageCache.cache(event.getMessage());
 		}
 		messageCache.sendUpdatedMessageToLog(event.getMessage(), before);
